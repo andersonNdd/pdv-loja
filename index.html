@@ -167,6 +167,9 @@ tr:hover td{background:#fdf5f7}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Estoque
     </div>
     <div class="nav-sec-lbl">Sistema</div>
+    <div class="nav-item" id="nav-payback" onclick="go('payback')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M17 2l5 5-5 5"/></svg>Payback & Projeção
+    </div>
     <div class="nav-item" id="nav-config" onclick="go('config')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>Configurações
     </div>
@@ -179,108 +182,107 @@ tr:hover td{background:#fdf5f7}
 <script>
 // ── DB ───────────────────────────────────────────────────────
 const DB={get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-const K={p:'mk_prod',c:'mk_cust',s:'mk_sales',m:'mk_mov',cfg:'mk_cfg',cs:'mk_costs'};
+const K={p:'mk_prod',c:'mk_cust',s:'mk_sales',m:'mk_mov',cfg:'mk_cfg',cs:'mk_costs',inv:'mk_inv'};
 const gP=()=>DB.get(K.p)||[];const gC=()=>DB.get(K.c)||[];const gS=()=>DB.get(K.s)||[];const gM=()=>DB.get(K.m)||[];
 const gCfg=()=>DB.get(K.cfg)||{name:'Glow Rosa Makeup',margin:100,minStock:5};
 const gCS=()=>DB.get(K.cs)||[];
-const sP=d=>DB.set(K.p,d);const sC=d=>DB.set(K.c,d);const sS=d=>DB.set(K.s,d);const sM=d=>DB.set(K.m,d);const sCfg=d=>DB.set(K.cfg,d);const sCS=d=>DB.set(K.cs,d);
+const gInv=()=>DB.get(K.inv)||[];const sInv=d=>DB.set(K.inv,d);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const R=n=>'R$ '+parseFloat(n||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 const D=d=>new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
 const CATS=['Base','Batom','Sombra','Blush','Rímel','Primer','Contorno','Outros'];
 
 // ── DADOS REAIS — NF MS ATACADO 26/05/2026 ─────────────────────
-// Custo = Total NF ÷ Qtd  (desconto 5% JÁ embutido nos valores da NF)
-// Tabela: calc=custo×1,70 → ≤11,50→10 | ≤16,50→15 | ≤20→25 | >20→25*
-const SEED_VERSION = 'v4';
+// Custo = (Total NF ÷ Qtd) × 0,95  — desconto 5% aplicado no total da nota (R$309,56)
+// Tabela: calc=custo×1,70 → ≤11,50→R$10 | ≤16,50→R$15 | >16,50→R$25
+const SEED_VERSION = 'v5';
 function p(bc,nm,cat,co,pr,st){return{id:uid(),barcode:bc,name:nm,category:cat,cost:parseFloat(co),price:parseFloat(pr),stock:st,minStock:3,unit:'un'};}
-function applyPriceTable(pr){if(pr<=11.50)return 10;if(pr<=16.50)return 15;if(pr<=20)return 25;return 25;}
+function applyPriceTable(pr){if(pr<=11.50)return 10;if(pr<=16.50)return 15;return 25;}
 function buildProducts(){return[
-  // #  Produto                                               custo  preço  qtd
-  p('M-2478','Agua Antioleosidade Lua e Neve',        'Outros', 5.57,  10, 12),
-  p('M-2475','Agua Rosa Mosqueta Lua e Neve',          'Outros', 5.57,  10, 12),
-  p('M-1794','Anel Infantil Capivara',                 'Outros', 2.99,  10,  2),
-  p('M-1795','Anel Infantil Hello Kitty',              'Outros', 2.99,  10,  3),
-  p('M-1348','Anel Infantil Stitch SM665115',          'Outros', 2.98,  10,  1),
-  p('M-1787','Anel Infantil Unicornio',                'Outros', 2.99,  10,  4),
-  p('M-2175','Base Liquida Premium Selection A 13-15 ISIS','Base',9.10, 15,  6),
-  p('M-2177','Base Liquida Premium Selection C 19-21 ISIS','Base',9.11, 15,  6),
-  p('3800',  'Base Sem Filtros DAPOP',                 'Base',  10.35,  25, 32),
-  p('M-1419','Batom Bala Primavera Mia Make',          'Batom',  3.25,  10, 36),
-  p('M-0614','Batom Lapis A Prova Dagua LN05066',      'Batom',  1.80,  10, 20),
-  p('M-0693','Batom Liquido Ovo Vivai',                'Batom',  3.21,  10, 72),
-  p('M-0328','Blindagem Poderosa 15ml DP2267 DAPOP',   'Primer', 7.77,  15, 36),
-  p('M-2993','Blush Ultrafino 50/55 Max Love',         'Blush',  6.90,  15, 12),
-  p('M-2947','Body Splash Cereja 200ml Dermachem',     'Outros', 8.52,  15, 12),
-  p('M-2152','Body Splash Juice Melancia 200ml',       'Outros', 8.52,  15, 12),
-  p('M-1840','Bolsa Silicone Bichinhos BHHH7006',      'Outros', 7.99,  15,  6),
-  p('M-2881','Brilho Coelhinho TS07010 Toque Especial','Batom',  4.28,  10, 24),
-  p('5485',  'Brinco Duplo Infantil RBB2994',          'Outros', 5.99,  10,  1),
-  p('M-0843','Brow Rise Gel Sobrancelhas HBE2503',     'Outros', 6.99,  15, 36),
-  p('M-1486','Caixa Anel Infantil C/10 RM-229',        'Outros', 8.00,  15,  2),
-  p('M-2682','Cilios Tufinho 30P 12mm Bela Manuela',   'Outros', 7.43,  15, 10),
-  p('M-1573','Cola Tufinho 30 Segundos',               'Outros', 9.81,  25, 12),
-  p('5128',  'Colar RM-070',                           'Outros', 3.50,  10,  6),
-  p('M-3166','Corretivo Camuflagem BR1154 4Angels',    'Contorno',4.27, 10, 24),
-  p('M-0234','Corretivo Liquido Efeito Matte Nude',    'Contorno',6.50, 10, 24),
-  p('M-2150','Creme Corporal Desodorante Melancia',    'Outros', 6.70,  10, 12),
-  p('M-2471','Deo Colonia Shame Forever You',          'Outros', 8.99,  15,  4),
-  p('M-2468','Deo Colonia Zad Forever You',            'Outros', 8.99,  15,  4),
-  p('M-3023','Duo Lip Lapis + Batom Vivai',            'Batom',  7.62,  15, 24),
-  p('M-2479','Escova Raquete Vazada',                  'Outros', 3.99,  10,  5),
-  p('M-0705','Escova Magica Cores Variadas',           'Outros', 1.99,  10,  5),
-  p('M-0944','Escova Polvo Cores Variadas',            'Outros', 1.99,  10,  5),
-  p('4100',  'Esf. Corporal Carvao Ativado PH0840',    'Outros', 8.90,  15,  3),
-  p('M-1172','Esf. Corporal Roma Romance PH599',       'Outros', 7.50,  15,  3),
-  p('M-0118','Esf. Corporal Rosa Mosqueta Argila PH0598','Outros',7.50, 15,  3),
-  p('M-2949','Esfoliante Corporal Cereja Dermachem',   'Outros', 6.70,  10, 12),
-  p('M-2148','Esfoliante Corporal Melancia Dermachem', 'Outros', 6.70,  10, 12),
-  p('M-2060','Esponja Anatomica QBM502 Bela Manuela',  'Outros', 1.67,  10, 12),
-  p('M-2059','Esponja Chanfrada QBM501 Bela Manuela',  'Outros', 1.80,  10,  3),
-  p('M-2974','Esponja Gota ML1010 Make Lolita',        'Outros', 1.80,  10,  1),
-  p('M-2134','Gelatina Babaglow Morango Toque Special','Outros', 8.50,  15,  3),
-  p('M-2135','Gelatina Babaglow Uva Toque Special',    'Outros', 8.50,  15,  3),
-  p('M-1612','Gloss Perola Viv Vivai',                 'Batom',  5.50,  10, 12),
-  p('5098',  'Kit C/10 Pinceis Sereia Cristal RM-0654','Outros', 8.99,  15,  3),
-  p('5099',  'Kit C/10 Pinceis Sereia Trad RM-0655',   'Outros', 8.99,  15,  3),
-  p('M-3123','Kit C/3 Aneis RM-1003',                  'Outros', 4.50,  10,  5),
-  p('M-1257','Kit C/5 Mini Esponja ML1003 Make Lolita','Outros', 3.81,  10, 12),
-  p('M-1046','Kit Mini Pinceis C/8 QBM820 Bela Manuela','Outros',4.50,  10,  4),
-  p('M-3110','Laco Infantil RM-1040',                  'Outros', 3.78,  10, 12),
-  p('M-1406','Lapis Olho Duo Preto e Marrom c/ Apontador','Sombra',1.67,10, 12),
-  p('M-1407','Lenco Demaquilante Colageno Vitamina C 4em1','Outros',6.10,10,11),
-  p('4469',  'Liguinha Cartela RM-063',                'Outros', 8.99,  15,  1),
-  p('M-2953','Lip Gloss Chaveiro Honey Kiss Mia Make', 'Batom',  5.70,  10, 31),
-  p('M-3052','Lip Gloss Choco Luxe Chaveiro BM40155',  'Batom',  7.25,  15, 24),
-  p('M-2823','Lip Gloss Com Chaveiro Cute BM40145',    'Batom',  8.25,  15, 12),
-  p('M-3178','Lip Gloss Glitter Panda Vivai',          'Batom',  2.60,  10, 24),
-  p('M-1183','Lip Gloss Sereia LN02283 Lua e Neve',    'Batom',  5.57,  10, 24),
-  p('M-1583','Lip Gloss Unicornio TS07001 Toque Special','Batom', 4.84, 10, 24),
-  p('M-3057','Lip Oil Chaveiro Pompom LN09131',        'Batom',  7.25,  15, 24),
-  p('M-1606','Lip Oil Vivai',                          'Batom',  6.05,  10, 36),
-  p('M-2988','Mascara de Cilios Lashes Vivai',         'Rímel',  6.41,  10, 24),
-  p('M-0551','Mascara de Cilios Mega Curve Big Volume','Rímel',  7.43,  15, 12),
-  p('M-2257','Mascara para Labios TS01085 Toque Special','Batom', 1.70, 10, 10),
-  p('M-0274','Navalha C/3 QBM923 Bela Manuela',        'Outros', 2.51,  10, 12),
-  p('M-1828','Pacote Lenco Removedor Vivai',           'Outros', 12.99, 25,  3),
-  p('M-2976','Pinca Chanfrada Sobrancelha QBM973',     'Outros', 3.02,  10, 12),
-  p('M-3043','Piranha de Cabelo XX PIN09',             'Outros', 4.55,  10, 12),
-  p('M-0682','Piranha Flor P Mey',                     'Outros', 2.05,  10, 12),
-  p('5132',  'Piranha RM',                             'Outros', 3.25,  10, 12),
-  p('M-0932','Po Neon QBM998 Bela Manuela',            'Outros', 4.99,  10,  4),
-  p('M-0900','Po Solto Banana FZ34032 Fenzza',         'Base',   5.81,  10, 20),
-  p('M-0635','Po Solto Peach Power DP2291 DAPOP',      'Base',   6.60,  10,  6),
-  p('M-2139','Po Translucido Solto DP2249 DAPOP',      'Base',   6.60,  10,  6),
-  p('M-0109','Protetor Solar Facial FPS 60 40G',       'Primer', 16.22, 25,  6),
-  p('M-0073','Rabico Para Cabelo Preto RM-1860',        'Outros', 7.50,  15,  1),
-  p('M-0110','Sab. Pos Demaquilante 100ml Dermachem',  'Outros', 6.22,  10, 12),
-  p('M-1779','Sab. Pre Primer 100ml Dermachem',        'Primer', 6.22,  10, 12),
-  p('M-2948','Sabonete Banho Cereja 100g Dermachem',   'Outros', 6.70,  10, 12),
-  p('M-2154','Sabonete Banho Melancia 100g Dermachem', 'Outros', 6.70,  10, 12),
-  p('M-0969','Sombra de Sobrancelha HBF572 Ruby Rose', 'Sombra', 7.99,  15, 24),
-  p('M-2888','Tapa Seios Adesivo',                     'Outros', 3.72,  10, 12),
-  p('M-0670','Touca Cetim Antifrizz',                  'Outros', 2.51,  10, 24),
-  p('4213',  'Serum 10x1 Max Love',                    'Primer', 5.94,  10, 24),
+  p('M-2478','Agua Antioleosidade Lua e Neve',              'Outros',  5.29, 10, 12),
+  p('M-2475','Agua Rosa Mosqueta Lua e Neve',               'Outros',  5.29, 10, 12),
+  p('M-1794','Anel Infantil Capivara',                      'Outros',  2.84, 10,  2),
+  p('M-1795','Anel Infantil Hello Kitty',                   'Outros',  2.84, 10,  3),
+  p('M-1348','Anel Infantil Stitch SM665115',               'Outros',  2.83, 10,  1),
+  p('M-1787','Anel Infantil Unicornio',                     'Outros',  2.84, 10,  4),
+  p('M-2175','Base Liquida Premium Selection A 13-15 ISIS', 'Base',    8.64, 15,  6),
+  p('M-2177','Base Liquida Premium Selection C 19-21 ISIS', 'Base',    8.65, 15,  6),
+  p('3800',  'Base Sem Filtros DAPOP',                      'Base',    9.83, 25, 32),
+  p('M-1419','Batom Bala Primavera Mia Make',               'Batom',   3.09, 10, 36),
+  p('M-0614','Batom Lapis A Prova Dagua LN05066',           'Batom',   1.71, 10, 20),
+  p('M-0693','Batom Liquido Ovo Vivai',                     'Batom',   3.05, 10, 72),
+  p('M-0328','Blindagem Poderosa 15ml DP2267 DAPOP',        'Primer',  7.38, 15, 36),
+  p('M-2993','Blush Ultrafino 50/55 Max Love',              'Blush',   6.55, 10, 12),
+  p('M-2947','Body Splash Cereja 200ml Dermachem',          'Outros',  8.09, 15, 12),
+  p('M-2152','Body Splash Juice Melancia 200ml Dermachem',  'Outros',  8.09, 15, 12),
+  p('M-1840','Bolsa Silicone Bichinhos BHHH7006',           'Outros',  7.59, 15,  6),
+  p('M-2881','Brilho Coelhinho TS07010 Toque Especial',     'Batom',   4.07, 10, 24),
+  p('5485',  'Brinco Duplo Infantil RBB2994',               'Outros',  5.69, 10,  1),
+  p('M-0843','Brow Rise Gel Sobrancelhas HBE2503 Ruby Rose','Outros',  6.64, 10, 36),
+  p('M-1486','Caixa Anel Infantil C/10 RM-229',             'Outros',  7.60, 15,  2),
+  p('M-2682','Cilios Tufinho 30P 12mm Bela Manuela',        'Outros',  7.06, 15, 10),
+  p('M-1573','Cola Tufinho 30 Segundos',                    'Outros',  9.32, 15, 12),
+  p('5128',  'Colar RM-070',                                'Outros',  3.32, 10,  6),
+  p('M-3166','Corretivo Camuflagem BR1154 4Angels',         'Contorno',4.06, 10, 24),
+  p('M-0234','Corretivo Liquido Efeito Matte Nude Vivai',   'Contorno',6.17, 10, 24),
+  p('M-2150','Creme Corporal Desodorante Melancia Dermachem','Outros', 6.37, 10, 12),
+  p('M-2471','Deo Colonia Shame Forever You',               'Outros',  8.54, 15,  4),
+  p('M-2468','Deo Colonia Zad Forever You',                 'Outros',  8.54, 15,  4),
+  p('M-3023','Duo Lip Lapis + Batom Vivai',                 'Batom',   7.24, 15, 24),
+  p('M-2479','Escova Raquete Vazada',                       'Outros',  3.79, 10,  5),
+  p('M-0705','Escova Magica Cores Variadas',                'Outros',  1.89, 10,  5),
+  p('M-0944','Escova Polvo Cores Variadas',                 'Outros',  1.89, 10,  5),
+  p('4100',  'Esf. Corporal Carvao Ativado PH0840 Phallebeauty','Outros',8.46,15, 3),
+  p('M-1172','Esf. Corporal Roma Romance PH599 Phallebeauty','Outros', 7.12, 15,  3),
+  p('M-0118','Esf. Corporal Rosa Mosqueta Argila PH0598',   'Outros',  7.12, 15,  3),
+  p('M-2949','Esfoliante Corporal Cereja Dermachem',        'Outros',  6.37, 10, 12),
+  p('M-2148','Esfoliante Corporal Melancia Dermachem',      'Outros',  6.37, 10, 12),
+  p('M-2060','Esponja Anatomica QBM502 Bela Manuela',       'Outros',  1.59, 10, 12),
+  p('M-2059','Esponja Chanfrada QBM501 Bela Manuela',       'Outros',  1.71, 10,  3),
+  p('M-2974','Esponja Gota ML1010 Make Lolita',             'Outros',  1.71, 10,  1),
+  p('M-2134','Gelatina Babaglow Morango Toque Special',     'Outros',  8.07, 15,  3),
+  p('M-2135','Gelatina Babaglow Uva Toque Special',         'Outros',  8.07, 15,  3),
+  p('M-1612','Gloss Perola Viv Vivai',                      'Batom',   5.22, 10, 12),
+  p('5098',  'Kit C/10 Pinceis Sereia Cristal RM-0654',     'Outros',  8.54, 15,  3),
+  p('5099',  'Kit C/10 Pinceis Sereia Tradicional RM-0655', 'Outros',  8.54, 15,  3),
+  p('M-3123','Kit C/3 Aneis RM-1003',                       'Outros',  4.27, 10,  5),
+  p('M-1257','Kit C/5 Mini Esponja ML1003 Make Lolita',     'Outros',  3.62, 10, 12),
+  p('M-1046','Kit Mini Pinceis C/8 QBM820 Bela Manuela',    'Outros',  4.27, 10,  4),
+  p('M-3110','Laco Infantil RM-1040',                       'Outros',  3.59, 10, 12),
+  p('M-1406','Lapis Olho Duo Preto e Marrom Mia Make',      'Sombra',  1.59, 10, 12),
+  p('M-1407','Lenco Demaquilante Colageno Vitamina C 4em1', 'Outros',  5.79, 10, 11),
+  p('4469',  'Liguinha Cartela RM-063',                     'Outros',  8.54, 15,  1),
+  p('M-2953','Lip Gloss Chaveiro Honey Kiss Mia Make',      'Batom',   5.41, 10, 31),
+  p('M-3052','Lip Gloss Choco Luxe Chaveiro BM40155 Febella','Batom',  6.89, 15, 24),
+  p('M-2823','Lip Gloss Com Chaveiro Cute BM40145 Febella', 'Batom',   7.84, 15, 12),
+  p('M-3178','Lip Gloss Glitter Panda Vivai',               'Batom',   2.47, 10, 24),
+  p('M-1183','Lip Gloss Sereia LN02283 Lua e Neve',         'Batom',   5.29, 10, 24),
+  p('M-1583','Lip Gloss Unicornio TS07001 Toque Special',   'Batom',   4.60, 10, 24),
+  p('M-3057','Lip Oil Chaveiro Pompom LN09131 Lua e Neve',  'Batom',   6.89, 15, 24),
+  p('M-1606','Lip Oil Vivai',                               'Batom',   5.75, 10, 36),
+  p('M-2988','Mascara de Cilios Lashes Vivai',              'Rímel',   6.09, 10, 24),
+  p('M-0551','Mascara de Cilios Mega Curve Big Volume Vivai','Rímel',  7.06, 15, 12),
+  p('M-2257','Mascara para Labios TS01085 Toque Special',   'Batom',   1.61, 10, 10),
+  p('M-0274','Navalha C/3 QBM923 Bela Manuela',             'Outros',  2.38, 10, 12),
+  p('M-1828','Pacote Lenco Removedor Vivai',                'Outros', 12.34, 25,  3),
+  p('M-2976','Pinca Chanfrada Sobrancelha QBM973',          'Outros',  2.87, 10, 12),
+  p('M-3043','Piranha de Cabelo XX PIN09',                  'Outros',  4.32, 10, 12),
+  p('M-0682','Piranha Flor P Mey',                          'Outros',  1.95, 10, 12),
+  p('5132',  'Piranha RM',                                  'Outros',  3.09, 10, 12),
+  p('M-0932','Po Neon QBM998 Bela Manuela',                 'Outros',  4.74, 10,  4),
+  p('M-0900','Po Solto Banana FZ34032 Fenzza Make Up',      'Base',    5.52, 10, 20),
+  p('M-0635','Po Solto Peach Power DP2291 DAPOP',           'Base',    6.27, 10,  6),
+  p('M-2139','Po Translucido Solto DP2249 DAPOP',           'Base',    6.27, 10,  6),
+  p('M-0109','Protetor Solar Facial FPS 60 40G Dermachem',  'Primer', 15.41, 25,  6),
+  p('M-0073','Rabico Para Cabelo Preto RM-1860',             'Outros',  7.12, 15,  1),
+  p('M-0110','Sab. Pos Demaquilante 100ml Dermachem',       'Outros',  5.91, 10, 12),
+  p('M-1779','Sab. Pre Primer 100ml Dermachem',             'Primer',  5.91, 10, 12),
+  p('M-2948','Sabonete Banho Cereja 100g Dermachem',        'Outros',  6.37, 10, 12),
+  p('M-2154','Sabonete Banho Melancia 100g Dermachem',      'Outros',  6.37, 10, 12),
+  p('M-0969','Sombra de Sobrancelha HBF572 Ruby Rose',      'Sombra',  7.59, 15, 24),
+  p('M-2888','Tapa Seios Adesivo',                          'Outros',  3.53, 10, 12),
+  p('M-0670','Touca Cetim Antifrizz',                       'Outros',  2.38, 10, 24),
+  p('4213',  'Serum 10x1 Max Love',                         'Primer',  5.64, 10, 24),
 ];}
 function seed(){
   const ver=DB.get('mk_ver');
@@ -299,6 +301,38 @@ function seed(){
       {id:uid(),name:'Energia Elétrica',type:'fixo',category:'Infraestrutura',value:300,period:'mensal',active:true,note:'Estimativa'},
       {id:uid(),name:'Tráfego Pago',type:'fixo',category:'Marketing',value:300,period:'mensal',active:true,note:'Impulsionamento'},
       {id:uid(),name:'Empréstimo Abertura de Loja',type:'fixo',category:'Financeiro',value:1700,period:'mensal',active:true,note:'Parcela mensal'},
+    ]);
+  }
+  if(!DB.get(K.inv)){
+    sInv([
+      {id:uid(),name:'Gasolina viagem (1)',cat:'Deslocamento',value:50.00,date:'2026-05-01'},
+      {id:uid(),name:'Trip/hospedagem',cat:'Deslocamento',value:70.00,date:'2026-05-01'},
+      {id:uid(),name:'ML – leds, ferro e outros',cat:'Estrutura',value:404.08,date:'2026-05-01'},
+      {id:uid(),name:'Shopp – móveis e outros',cat:'Móveis',value:218.93,date:'2026-05-01'},
+      {id:uid(),name:'Shopp – loja',cat:'Estrutura',value:165.44,date:'2026-05-01'},
+      {id:uid(),name:'Microfone loja',cat:'Equipamento',value:69.55,date:'2026-05-01'},
+      {id:uid(),name:'Ads / publicidade',cat:'Marketing',value:130.00,date:'2026-05-01'},
+      {id:uid(),name:'Notebook',cat:'Equipamento',value:1150.00,date:'2026-05-01'},
+      {id:uid(),name:'Sacolas (1/2)',cat:'Embalagem',value:310.00,date:'2026-05-01'},
+      {id:uid(),name:'Brazil Atacado',cat:'Estoque',value:84.33,date:'2026-05-01'},
+      {id:uid(),name:'Placa loja (1/2)',cat:'Marketing',value:200.00,date:'2026-05-01'},
+      {id:uid(),name:'Ferreira Costa',cat:'Estrutura',value:85.80,date:'2026-05-01'},
+      {id:uid(),name:'Passagem',cat:'Deslocamento',value:60.00,date:'2026-05-01'},
+      {id:uid(),name:'Carajás',cat:'Estrutura',value:323.32,date:'2026-05-01'},
+      {id:uid(),name:'Cestas',cat:'Outros',value:158.38,date:'2026-05-01'},
+      {id:uid(),name:'Gasolina viagem (2)',cat:'Deslocamento',value:193.84,date:'2026-05-01'},
+      {id:uid(),name:'Massa + tíner',cat:'Estrutura',value:54.00,date:'2026-05-01'},
+      {id:uid(),name:'Metalon',cat:'Móveis',value:206.00,date:'2026-05-01'},
+      {id:uid(),name:'Madeiras – móveis (1)',cat:'Móveis',value:500.00,date:'2026-05-01'},
+      {id:uid(),name:'Madeiras – móveis (2)',cat:'Móveis',value:500.00,date:'2026-05-01'},
+      {id:uid(),name:'Madeiras – móveis (3)',cat:'Móveis',value:500.00,date:'2026-05-01'},
+      {id:uid(),name:'Isopor parede 3D',cat:'Estrutura',value:59.94,date:'2026-05-01'},
+      {id:uid(),name:'Ar-condicionado',cat:'Equipamento',value:600.00,date:'2026-05-01'},
+      {id:uid(),name:'Aluguel (abertura)',cat:'Infraestrutura',value:500.00,date:'2026-05-01'},
+      {id:uid(),name:'Estilete + pincel',cat:'Outros',value:16.00,date:'2026-05-01'},
+      {id:uid(),name:'Pano de chão',cat:'Outros',value:8.00,date:'2026-05-01'},
+      {id:uid(),name:'SSD',cat:'Equipamento',value:175.00,date:'2026-05-01'},
+      {id:uid(),name:'Estoque inicial – MS Atacado',cat:'Estoque',value:5881.55,date:'2026-05-26'},
     ]);
   }
   DB.set('mk_ver',SEED_VERSION);
@@ -326,7 +360,7 @@ function go(page){
   curPage=page;
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
   const n=document.getElementById('nav-'+page);if(n)n.classList.add('active');
-  const map={pdv:pdvPage,clientes:clientesPage,produtos:produtosPage,historico:historicoPage,estoque:estoquePage,relatorios:relatoriosPage,previsao:previsaoPage,custos:custosPage,config:configPage};
+  const map={pdv:pdvPage,clientes:clientesPage,produtos:produtosPage,historico:historicoPage,estoque:estoquePage,relatorios:relatoriosPage,previsao:previsaoPage,custos:custosPage,payback:paybackPage,config:configPage};
   const main=document.getElementById('main');
   if(map[page]){main.innerHTML=map[page]();afterGo(page);}
   syncStoreName();
@@ -334,7 +368,7 @@ function go(page){
 function afterGo(p){
   if(p==='relatorios')setTimeout(initCharts,60);
   if(p==='previsao')setTimeout(initPrevisaoCharts,60);
-  if(p==='pdv'){cart=[];selCust=null;discVal=0;discType='fixed';pays=[];payRows=1;renderCart();setTimeout(()=>document.getElementById('pdv-search')?.focus(),50);}
+  if(p==='pdv'){cart=[];selCust=null;discVal=0;discType='fixed';pays=[];payRows=1;renderCart();_bcBuffer='';if(_bcTimer){clearTimeout(_bcTimer);_bcTimer=null;}setTimeout(()=>document.getElementById('pdv-search')?.focus(),50);}
 }
 function syncStoreName(){
   const cfg=gCfg();
@@ -499,7 +533,12 @@ function pdvPage(){
       <div class="card"><div class="card-body" style="padding:14px">
         <div class="fg" style="margin:0"><label class="fl">🔍 Produto ou código de barras</label>
         <div class="sw" style="position:relative">
-          <input class="fc" id="pdv-search" placeholder="Digite ou passe o leitor..." oninput="pdvSrch(this.value)" onkeydown="pdvKey(event)" autocomplete="off" style="font-size:14.5px;padding:11px 13px">
+          <input class="fc" id="pdv-search" placeholder="Digite, busque ou passe o leitor..." 
+            oninput="pdvBarcodeInput(event)"
+            onpaste="setTimeout(()=>pdvBarcodeInput({target:document.getElementById('pdv-search')}),10)"
+            onkeydown="pdvKey(event)" 
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            style="font-size:14.5px;padding:11px 13px">
           <div id="pdv-dd" class="ac-dd" style="display:none"></div>
         </div></div>
       </div></div>
@@ -546,23 +585,66 @@ function pdvPage(){
 
 function pdvSrch(q){
   const dd=document.getElementById('pdv-dd');
-  if(!q){dd.style.display='none';return;}
-  srRes=gP().filter(p=>p.name.toLowerCase().includes(q.toLowerCase())||(p.barcode&&p.barcode===q)).slice(0,8);
+  if(!q||!q.trim()){dd.style.display='none';return;}
+  q=q.trim();
+  // Busca por código de barras exato primeiro, depois por nome
+  srRes=gP().filter(p=>{
+    const bcMatch=p.barcode&&(p.barcode.trim().toLowerCase()===q.toLowerCase()||p.barcode.trim()===q);
+    const nameMatch=p.name.toLowerCase().includes(q.toLowerCase());
+    return bcMatch||nameMatch;
+  }).slice(0,8);
   if(!srRes.length){dd.style.display='none';return;}
-  dd.innerHTML=srRes.map(p=>`<div class="ac-item" onclick="addToCart('${p.id}');document.getElementById('pdv-search').value='';document.getElementById('pdv-dd').style.display='none'">
-    <div><div style="font-weight:500">${p.name}</div><div style="font-size:11px;color:var(--muted)">${p.category} · Est: ${p.stock}</div></div>
+  dd.innerHTML=srRes.map(p=>`<div class="ac-item" onclick="addToCart('${p.id}');clearPdvSearch()">
+    <div><div style="font-weight:500">${p.name}</div><div style="font-size:11px;color:var(--muted)">${p.category} · Est: ${p.stock} · <span style="font-family:monospace">${p.barcode||'—'}</span></div></div>
     <div style="font-weight:700;color:var(--pri)">${R(p.price)}</div>
   </div>`).join('');
   dd.style.display='block';
 }
+
+function clearPdvSearch(){
+  const el=document.getElementById('pdv-search');
+  if(el){el.value='';el.focus();}
+  const dd=document.getElementById('pdv-dd');
+  if(dd)dd.style.display='none';
+}
+
+// Buffer para leitor de código de barras USB
+// Leitores digitam muito rápido (< 50ms entre teclas) — detectamos pelo tempo
+let _bcBuffer='', _bcTimer=null;
+function pdvBarcodeInput(e){
+  // Limpa timer anterior
+  if(_bcTimer)clearTimeout(_bcTimer);
+  _bcBuffer=e.target.value;
+  // Aciona busca imediatamente para feedback visual
+  pdvSrch(_bcBuffer);
+  // Timer: se nada digitar em 80ms, considera que o leitor terminou
+  _bcTimer=setTimeout(()=>{
+    const q=_bcBuffer.trim();
+    if(!q)return;
+    // Tenta match exato de código de barras
+    const exact=gP().find(p=>p.barcode&&p.barcode.trim().toLowerCase()===q.toLowerCase());
+    if(exact){addToCart(exact.id);clearPdvSearch();_bcBuffer='';}
+    _bcTimer=null;
+  },80);
+}
+
 function pdvKey(e){
   if(e.key==='Enter'){
-    const q=e.target.value.trim();if(!q)return;
-    const exact=gP().find(p=>p.barcode===q);
-    if(exact){addToCart(exact.id);e.target.value='';document.getElementById('pdv-dd').style.display='none';return;}
-    if(srRes.length===1){addToCart(srRes[0].id);e.target.value='';document.getElementById('pdv-dd').style.display='none';}
+    if(_bcTimer){clearTimeout(_bcTimer);_bcTimer=null;}
+    const q=(e.target.value||'').trim();
+    if(!q)return;
+    // Match exato de código
+    const exact=gP().find(p=>p.barcode&&p.barcode.trim().toLowerCase()===q.toLowerCase());
+    if(exact){addToCart(exact.id);clearPdvSearch();_bcBuffer='';return;}
+    // Se só tem 1 resultado na lista, adiciona
+    if(srRes.length===1){addToCart(srRes[0].id);clearPdvSearch();_bcBuffer='';return;}
+    // Se tem vários, apenas fecha o dropdown
+    if(srRes.length===0)toast('Produto não encontrado','warn');
   }
-  if(e.key==='Escape')document.getElementById('pdv-dd').style.display='none';
+  if(e.key==='Escape'){
+    document.getElementById('pdv-dd').style.display='none';
+    _bcBuffer='';
+  }
 }
 function pdvCustSrch(q){
   const dd=document.getElementById('pdv-cdd');
@@ -1541,6 +1623,243 @@ function toggleCusto(id){
 function delCusto(id){
   if(!confirm('Excluir este custo?'))return;
   sCS(gCS().filter(x=>x.id!==id));toast('Custo removido','warn');go('custos');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PAYBACK & PROJEÇÃO
+// ═══════════════════════════════════════════════════════════════
+const LOAN={total:18050,p1:1715.87,p12:1575.02,n:12,start:'2026-06-01'};
+const INV_CATS=['Estrutura','Móveis','Equipamento','Embalagem','Estoque','Marketing','Deslocamento','Infraestrutura','Outros'];
+
+function paybackPage(){
+  const inv=gInv();
+  const totalInv=inv.reduce((s,i)=>s+i.value,0);
+  const costs=gCS().filter(c=>c.active&&c.type==='fixo');
+  const fixoMes=costs.reduce((s,c)=>s+c.value,0);
+  const margem=0.531;
+
+  // Calcular parcela atual do empréstimo
+  const r=(LOAN.p1/LOAN.p12-1)/(LOAN.n-LOAN.p1/LOAN.p12);
+  const amort=LOAN.p12/(1+r);
+  const startDate=new Date(LOAN.start);
+  const now=new Date();
+  const mesDecorrido=Math.max(0,Math.floor((now-startDate)/(30.44*864e5)));
+  const parcMes=Math.min(mesDecorrido,LOAN.n-1);
+  const parcelaAtual=parcMes<LOAN.n?parseFloat((amort*(1+(LOAN.n-parcMes)*r)).toFixed(2)):0;
+  const parcelasRestantes=Math.max(0,LOAN.n-mesDecorrido);
+  const totalJaPago=Array.from({length:mesDecorrido},(_, k)=>amort*(1+(LOAN.n-k)*r)).reduce((s,v)=>s+v,0);
+
+  // Vendas reais dos últimos 30 dias
+  const ss=gS().filter(s=>!s.cancelled);
+  const diasAtras30=new Date(Date.now()-30*864e5).toISOString();
+  const ss30=ss.filter(s=>s.createdAt>=diasAtras30);
+  const fatReal30=ss30.reduce((s,v)=>s+v.total,0);
+  const fatMesRef=fatReal30;
+
+  // CMV real
+  const ps=gP();
+  let cmv30=0;
+  ss30.forEach(sale=>sale.items.forEach(it=>{const p=ps.find(x=>x.id===it.id);if(p)cmv30+=p.cost*it.qty;}));
+  const lucBruto30=fatMesRef-cmv30;
+  const lliq30=lucBruto30-fixoMes;
+  const pb=lliq30>0?totalInv/lliq30:null;
+
+  // Projeção por cenário
+  const cenarios=[
+    {label:'Pessimista',fat:3500,cor:'#e05555',icon:'😔'},
+    {label:'Realista Mês 1-2',fat:4500,cor:'#f0a500',icon:'🟡'},
+    {label:'Realista Mês 3-6',fat:6500,cor:'#6b9dd4',icon:'📈'},
+    {label:'Meta mínima',fat:fixoMes/margem+1,cor:'#9e6878',icon:'⚖️'},
+    {label:'Consolidado',fat:8000,cor:'#4caf7d',icon:'✅'},
+    {label:'Excelente',fat:12000,cor:'#b5546a',icon:'🚀'},
+  ].map(c=>({...c,lb:c.fat*margem,ll:c.fat*margem-fixoMes,pb:c.fat*margem-fixoMes>0?Math.ceil(totalInv/(c.fat*margem-fixoMes)):null}));
+
+  // Análise realista do contexto
+  const breakEven=fixoMes/margem;
+
+  return`
+  <div class="pg-hdr">
+    <div><div class="pg-title">Payback & Projeção</div>
+    <div class="pg-sub">Investimento total · retorno · previsões</div></div>
+    <button class="btn btn-pri" onclick="openInvModal()">+ Novo Gasto</button>
+  </div>
+
+  <!-- KPIs topo -->
+  <div class="stats-g" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-c" style="border-left:4px solid var(--err)">
+      <div class="stat-lbl">Total Investido</div>
+      <div class="stat-val" style="color:var(--err);font-size:22px">${R(totalInv)}</div>
+      <div style="font-size:11px;color:var(--muted)">${inv.length} itens registrados</div>
+    </div>
+    <div class="stat-c" style="border-left:4px solid var(--sec)">
+      <div class="stat-lbl">Empréstimo</div>
+      <div class="stat-val" style="color:var(--sec);font-size:22px">${R(LOAN.total)}</div>
+      <div style="font-size:11px;color:var(--muted)">${parcelasRestantes} parcelas restantes</div>
+    </div>
+    <div class="stat-c" style="border-left:4px solid var(--pri)">
+      <div class="stat-lbl">Break-even mensal</div>
+      <div class="stat-val" style="color:var(--pri);font-size:22px">${R(breakEven)}</div>
+      <div style="font-size:11px;color:var(--muted)">para cobrir custos fixos</div>
+    </div>
+    <div class="stat-c" style="border-left:4px solid ${lliq30>=0?'var(--ok)':'var(--err)'}">
+      <div class="stat-lbl">Lucro Líq. (últimos 30d)</div>
+      <div class="stat-val" style="color:${lliq30>=0?'var(--ok)':'var(--err)'};font-size:22px">${R(lliq30)}</div>
+      <div style="font-size:11px;color:var(--muted)">fat: ${R(fatMesRef)} · ${ss30.length} vendas</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start">
+
+    <!-- Payback dinâmico baseado nas vendas reais -->
+    <div class="card">
+      <div class="card-hdr" style="background:linear-gradient(135deg,#3b0a1f,#6b1535)">
+        <div class="card-title" style="color:#fff">⏱️ Payback Real — baseado nas suas vendas</div>
+      </div>
+      <div class="card-body">
+        ${fatMesRef>0?`
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Com o ritmo atual de vendas</div>
+          ${lliq30>0?`
+          <div style="font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:700;color:var(--pri)">${pb?pb.toFixed(0):'∞'} <span style="font-size:20px">meses</span></div>
+          <div style="font-size:13px;color:var(--ok);font-weight:600">= ${pb?Math.floor(pb/12)+'a '+pb%12+'m':''} para recuperar R$${R(totalInv)}</div>
+          `:`<div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--err)">Abaixo do break-even</div>
+          <div style="font-size:12px;color:var(--muted)">Falta ${R(Math.abs(lliq30))}/mês para cobrir os custos fixos</div>`}
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:12px">
+          <div class="sr"><span style="font-size:12px">Faturamento (30d)</span><strong>${R(fatMesRef)}</strong></div>
+          <div class="sr"><span style="font-size:12px">CMV (custo mercadoria)</span><span style="color:var(--err)">- ${R(cmv30)}</span></div>
+          <div class="sr"><span style="font-size:12px">Lucro bruto</span><strong>${R(lucBruto30)}</strong></div>
+          <div class="sr"><span style="font-size:12px">Custos fixos</span><span style="color:var(--err)">- ${R(fixoMes)}</span></div>
+          <div class="sr" style="border-top:1.5px solid var(--bdr);padding-top:6px;margin-top:4px"><span style="font-weight:700">Lucro líquido</span><strong style="color:${lliq30>=0?'var(--ok)':'var(--err)'}">${R(lliq30)}</strong></div>
+        </div>`:`
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:40px;margin-bottom:8px">📊</div>
+          <div style="font-size:14px;font-weight:600;color:var(--txt)">Sem vendas registradas ainda</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Registre vendas no PDV para calcular o payback real automaticamente</div>
+        </div>`}
+
+        <!-- Barra progresso empréstimo -->
+        <div style="margin-top:14px;padding:12px;background:#fff8f0;border-radius:8px;border-left:3px solid var(--sec)">
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--sec)">Progresso do Empréstimo</div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px">
+            <span>${mesDecorrido} de ${LOAN.n} parcelas pagas</span>
+            <span>${R(totalJaPago)} pagos</span>
+          </div>
+          <div style="background:#e8d9df;border-radius:6px;height:8px">
+            <div style="width:${Math.min(mesDecorrido/LOAN.n*100,100).toFixed(0)}%;background:var(--sec);height:8px;border-radius:6px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:5px;color:var(--muted)">
+            <span>Parcela atual: ${R(parcelaAtual)}</span>
+            <span>Total: ${R(LOAN.total)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Análise realista do contexto -->
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">🔍 Análise Realista — Contexto</div></div>
+      <div class="card-body" style="font-size:13px;display:flex;flex-direction:column;gap:10px">
+        <div style="background:#fdf0f4;border-radius:8px;padding:12px;border-left:3px solid var(--pri)">
+          <div style="font-weight:700;margin-bottom:4px">Mercado: Gurinhém, PB</div>
+          <div style="color:var(--muted);font-size:12px;line-height:1.6">~14.000 habitantes · estimativa de 4.500 mulheres potenciais compradoras · cidade de interior sem concorrência direta identificada no segmento de preço único.</div>
+        </div>
+        <div style="background:#fff8f0;border-radius:8px;padding:12px;border-left:3px solid var(--sec)">
+          <div style="font-weight:700;margin-bottom:4px">Vantagem competitiva real</div>
+          <div style="color:var(--muted);font-size:12px;line-height:1.6">Preço único R$10/R$15 é raro no interior. Produtos nacionais conhecidos (Vivai, Ruby Rose, DAPOP). Loja física com identidade visual profissional.</div>
+        </div>
+        <div style="background:#fef9c3;border-radius:8px;padding:12px;border-left:3px solid var(--warn)">
+          <div style="font-weight:700;margin-bottom:4px">⚠️ Sem dados de Instagram/Ads</div>
+          <div style="color:#a16207;font-size:12px;line-height:1.6">Windsor.ai não localizou campanhas ativas. Se os R$300/mês de tráfego são feitos pelo impulsionamento direto do Instagram (botão "Impulsionar"), esses dados não ficam disponíveis via API — apenas campanhas criadas no Gerenciador de Anúncios do Meta são rastreáveis.</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:8px;padding:12px;border-left:3px solid var(--ok)">
+          <div style="font-weight:700;margin-bottom:4px">Projeção honesta</div>
+          <div style="color:#16a34a;font-size:12px;line-height:1.6">Meses 1-2: R$3.000–4.500 (abertura + curiosidade). Meses 3-6: R$5.000–7.500 (fidelização). A partir do mês 7 com boa gestão de redes e boca a boca: R$8.000+.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cenários de payback -->
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">📊 Cenários de Payback — se vender X por mês</div>
+    <div style="font-size:12px;color:var(--muted)">Total a recuperar: ${R(totalInv)} · Margem: 53,1% · Custos fixos: ${R(fixoMes)}/mês</div></div>
+    <div style="padding:0">
+      <table><thead><tr><th>Cenário</th><th>Faturamento</th><th>Lucro Bruto</th><th>Lucro Líquido</th><th>Payback</th><th>Viabilidade</th></tr></thead>
+      <tbody>
+      ${cenarios.map(c=>`<tr>
+        <td>${c.icon} <strong>${c.label}</strong></td>
+        <td>${R(c.fat)}</td>
+        <td>${R(c.lb)}</td>
+        <td style="color:${c.ll>0?'var(--ok)':'var(--err)'};font-weight:600">${R(c.ll)}</td>
+        <td><strong style="color:${c.pb&&c.pb<=12?'var(--ok)':c.pb&&c.pb<=24?'var(--warn)':'var(--err)'}">${c.pb?c.pb+' meses':'❌ Prejuízo'}</strong></td>
+        <td>${c.ll<0?'<span class="badge b-err">Inviável</span>':c.ll<500?'<span class="badge b-warn">Arriscado</span>':c.ll<1500?'<span class="badge b-info">Viável</span>':'<span class="badge b-ok">Ótimo</span>'}</td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>
+  </div>
+
+  <!-- Investimentos cadastrados -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">📋 Investimentos Cadastrados</div>
+      <span class="badge b-err" style="font-size:13px">${R(totalInv)} total</span>
+    </div>
+    <div class="tw">
+      <table><thead><tr><th>Descrição</th><th>Categoria</th><th>Data</th><th>Valor</th><th></th></tr></thead>
+      <tbody id="inv-list">
+      ${invTable(inv)}
+      </tbody></table>
+    </div>
+    <div style="padding:14px;border-top:1px solid var(--bdr);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-pri btn-sm" onclick="openInvModal()">+ Adicionar Gasto</button>
+      <div style="font-size:12px;color:var(--muted)">Novos gastos são adicionados automaticamente ao cálculo de payback</div>
+    </div>
+  </div>`;
+}
+
+function invTable(inv){
+  if(!inv.length)return`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhum investimento cadastrado</td></tr>`;
+  const sorted=[...inv].sort((a,b)=>b.value-a.value);
+  return sorted.map(i=>`<tr>
+    <td><strong>${i.name}</strong></td>
+    <td><span class="badge b-gray">${i.cat}</span></td>
+    <td style="font-size:12px;color:var(--muted)">${i.date?new Date(i.date+'T12:00:00').toLocaleDateString('pt-BR'):'-'}</td>
+    <td><strong style="color:var(--err)">${R(i.value)}</strong></td>
+    <td style="text-align:right">
+      <button class="btn-ic" onclick="delInv('${i.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+    </td>
+  </tr>`).join('');
+}
+
+function openInvModal(){
+  openModal(`<div class="modal"><div class="mhdr"><div class="mtitle">+ Novo Gasto / Investimento</div><button class="btn-ic" onclick="closeModal()">✕</button></div>
+  <div class="mbody">
+    <div class="fg"><label class="fl">Descrição *</label><input class="fc" id="inv-n" placeholder="Ex: Araras, etiquetas, taxa alvará..."></div>
+    <div class="fr fr2">
+      <div class="fg"><label class="fl">Categoria</label>
+        <select class="fc" id="inv-c">${INV_CATS.map(c=>`<option>${c}</option>`).join('')}</select>
+      </div>
+      <div class="fg"><label class="fl">Valor (R$) *</label><input class="fc" type="number" step="0.01" id="inv-v" placeholder="0,00"></div>
+    </div>
+    <div class="fg"><label class="fl">Data do gasto</label><input class="fc" type="date" id="inv-d" value="${new Date().toISOString().slice(0,10)}"></div>
+  </div>
+  <div class="mftr"><button class="btn btn-sec" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-pri" onclick="saveInv()">Salvar</button></div></div>`);
+}
+function saveInv(){
+  const name=document.getElementById('inv-n').value.trim();
+  const value=parseFloat(document.getElementById('inv-v').value)||0;
+  const cat=document.getElementById('inv-c').value;
+  const date=document.getElementById('inv-d').value;
+  if(!name||!value){toast('Preencha nome e valor','err');return;}
+  const inv=gInv();
+  inv.push({id:uid(),name,cat,value,date});
+  sInv(inv);closeModal();toast('Gasto adicionado!');go('payback');
+}
+function delInv(id){
+  if(!confirm('Remover este investimento?'))return;
+  sInv(gInv().filter(x=>x.id!==id));go('payback');
 }
 
 // ═══════════════════════════════════════════════════════════════
