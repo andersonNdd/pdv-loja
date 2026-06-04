@@ -275,7 +275,7 @@ function buildProducts(){return[
   p('M-0635','Po Solto Peach Power DP2291 DAPOP',           'Base',    6.27, 10,  6),
   p('M-2139','Po Translucido Solto DP2249 DAPOP',           'Base',    6.27, 10,  6),
   p('M-0109','Protetor Solar Facial FPS 60 40G Dermachem',  'Primer', 15.41, 25,  6),
-  p('M-0073','Rabico Para Cabelo Preto RM-1860',             'Outros',  7.12,  5,  1),
+  p('M-0073','Rabico Para Cabelo Preto RM-1860 (unidade)',   'Outros',  0.59,  5, 12),
   p('M-0110','Sab. Pos Demaquilante 100ml Dermachem',       'Outros',  5.91, 10, 12),
   p('M-1779','Sab. Pre Primer 100ml Dermachem',             'Primer',  5.91, 10, 12),
   p('M-2948','Sabonete Banho Cereja 100g Dermachem',        'Outros',  6.37, 10, 12),
@@ -1927,6 +1927,48 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('#pdv-cs')&&!e.target.closest('#pdv-cdd'))document.getElementById('pdv-cdd')?.setAttribute('style','display:none');
   if(!e.target.closest('#pdv-customer-search')&&!e.target.closest('#pdv-customer-dropdown'))document.getElementById('pdv-customer-dropdown')?.setAttribute('style','display:none');
 });
+
+// ── CAPTURA GLOBAL DE TECLADO — PDV ─────────────────────────
+// Garante que o leitor de código de barras sempre direcione para o campo de busca
+// mesmo quando o foco estiver em outro elemento ou perdido
+document.addEventListener('keydown', function(e){
+  if(curPage !== 'pdv') return;          // só no PDV
+  if(document.getElementById('mo')) return; // modal aberto → não interfere
+  const active = document.activeElement;
+  const tag = active?.tagName?.toLowerCase();
+  // Já está no campo correto
+  if(active?.id === 'pdv-search') return;
+  // Está em outro input (cliente, desconto, etc.) → não interfere
+  if((tag==='input'||tag==='select'||tag==='textarea') && active?.id !== 'pdv-search') return;
+  // Captura caracteres imprimíveis e redireciona ao campo de busca
+  if(e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey){
+    e.preventDefault();
+    const el = document.getElementById('pdv-search');
+    if(el){
+      el.value += e.key;
+      el.focus();
+      pdvBarcodeInput({target: el});
+    }
+    return;
+  }
+  // Backspace no campo mesmo sem foco
+  if(e.key === 'Backspace'){
+    const el = document.getElementById('pdv-search');
+    if(el){ el.value = el.value.slice(0,-1); el.focus(); pdvBarcodeInput({target:el}); }
+    return;
+  }
+  // Enter dispara a busca
+  if(e.key === 'Enter'){
+    const el = document.getElementById('pdv-search');
+    if(el){ el.focus(); pdvKey(e); }
+    return;
+  }
+  // Escape limpa
+  if(e.key === 'Escape'){
+    const el = document.getElementById('pdv-search');
+    if(el){ el.value=''; el.focus(); document.getElementById('pdv-dd')?.setAttribute('style','display:none'); }
+  }
+}, false);
 
 function restoreStock(){
   if(!confirm('Restaurar os 84 produtos da NF?\n\nCódigos de barras que você digitou manualmente serão preservados.'))return;
