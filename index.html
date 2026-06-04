@@ -187,6 +187,7 @@ const gP=()=>DB.get(K.p)||[];const gC=()=>DB.get(K.c)||[];const gS=()=>DB.get(K.
 const gCfg=()=>DB.get(K.cfg)||{name:'Glow Rosa Makeup',margin:100,minStock:5};
 const gCS=()=>DB.get(K.cs)||[];
 const gInv=()=>DB.get(K.inv)||[];const sInv=d=>DB.set(K.inv,d);
+const sP=d=>DB.set(K.p,d);const sC=d=>DB.set(K.c,d);const sS=d=>DB.set(K.s,d);const sM=d=>DB.set(K.m,d);const sCfg=d=>DB.set(K.cfg,d);const sCS=d=>DB.set(K.cs,d);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const R=n=>'R$ '+parseFloat(n||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 const D=d=>new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -195,16 +196,16 @@ const CATS=['Base','Batom','Sombra','Blush','Rímel','Primer','Contorno','Outros
 // ── DADOS REAIS — NF MS ATACADO 26/05/2026 ─────────────────────
 // Custo = (Total NF ÷ Qtd) × 0,95  — desconto 5% aplicado no total da nota (R$309,56)
 // Tabela: calc=custo×1,70 → ≤11,50→R$10 | ≤16,50→R$15 | >16,50→R$25
-const SEED_VERSION = 'v5';
+const SEED_VERSION = 'v6';
 function p(bc,nm,cat,co,pr,st){return{id:uid(),barcode:bc,name:nm,category:cat,cost:parseFloat(co),price:parseFloat(pr),stock:st,minStock:3,unit:'un'};}
 function applyPriceTable(pr){if(pr<=11.50)return 10;if(pr<=16.50)return 15;return 25;}
 function buildProducts(){return[
   p('M-2478','Agua Antioleosidade Lua e Neve',              'Outros',  5.29, 10, 12),
   p('M-2475','Agua Rosa Mosqueta Lua e Neve',               'Outros',  5.29, 10, 12),
-  p('M-1794','Anel Infantil Capivara',                      'Outros',  2.84, 10,  2),
-  p('M-1795','Anel Infantil Hello Kitty',                   'Outros',  2.84, 10,  3),
-  p('M-1348','Anel Infantil Stitch SM665115',               'Outros',  2.83, 10,  1),
-  p('M-1787','Anel Infantil Unicornio',                     'Outros',  2.84, 10,  4),
+  p('M-1794','Anel Infantil Capivara',                      'Outros',  2.84,  8,  2),
+  p('M-1795','Anel Infantil Hello Kitty',                   'Outros',  2.84,  8,  3),
+  p('M-1348','Anel Infantil Stitch SM665115',               'Outros',  2.83,  8,  1),
+  p('M-1787','Anel Infantil Unicornio',                     'Outros',  2.84,  8,  4),
   p('M-2175','Base Liquida Premium Selection A 13-15 ISIS', 'Base',    8.64, 15,  6),
   p('M-2177','Base Liquida Premium Selection C 19-21 ISIS', 'Base',    8.65, 15,  6),
   p('3800',  'Base Sem Filtros DAPOP',                      'Base',    9.83, 25, 32),
@@ -219,7 +220,7 @@ function buildProducts(){return[
   p('M-2881','Brilho Coelhinho TS07010 Toque Especial',     'Batom',   4.07, 10, 24),
   p('5485',  'Brinco Duplo Infantil RBB2994',               'Outros',  5.69, 10,  1),
   p('M-0843','Brow Rise Gel Sobrancelhas HBE2503 Ruby Rose','Outros',  6.64, 10, 36),
-  p('M-1486','Caixa Anel Infantil C/10 RM-229',             'Outros',  7.60, 15,  2),
+  p('M-1486','Caixa Anel Infantil C/10 RM-229 (unidade)',   'Outros',  0.76,  5, 20),
   p('M-2682','Cilios Tufinho 30P 12mm Bela Manuela',        'Outros',  7.06, 15, 10),
   p('M-1573','Cola Tufinho 30 Segundos',                    'Outros',  9.32, 15, 12),
   p('5128',  'Colar RM-070',                                'Outros',  3.32, 10,  6),
@@ -249,9 +250,9 @@ function buildProducts(){return[
   p('M-1257','Kit C/5 Mini Esponja ML1003 Make Lolita',     'Outros',  3.62, 10, 12),
   p('M-1046','Kit Mini Pinceis C/8 QBM820 Bela Manuela',    'Outros',  4.27, 10,  4),
   p('M-3110','Laco Infantil RM-1040',                       'Outros',  3.59, 10, 12),
-  p('M-1406','Lapis Olho Duo Preto e Marrom Mia Make',      'Sombra',  1.59, 10, 12),
+  p('M-1406','Lapis Olho Duo Preto e Marrom Mia Make',      'Sombra',  1.59,  5, 12),
   p('M-1407','Lenco Demaquilante Colageno Vitamina C 4em1', 'Outros',  5.79, 10, 11),
-  p('4469',  'Liguinha Cartela RM-063',                     'Outros',  8.54, 15,  1),
+  p('4469',  'Liguinha RM-063 (unidade)',                   'Outros',  0.85,  5, 10),
   p('M-2953','Lip Gloss Chaveiro Honey Kiss Mia Make',      'Batom',   5.41, 10, 31),
   p('M-3052','Lip Gloss Choco Luxe Chaveiro BM40155 Febella','Batom',  6.89, 15, 24),
   p('M-2823','Lip Gloss Com Chaveiro Cute BM40145 Febella', 'Batom',   7.84, 15, 12),
@@ -262,38 +263,41 @@ function buildProducts(){return[
   p('M-1606','Lip Oil Vivai',                               'Batom',   5.75, 10, 36),
   p('M-2988','Mascara de Cilios Lashes Vivai',              'Rímel',   6.09, 10, 24),
   p('M-0551','Mascara de Cilios Mega Curve Big Volume Vivai','Rímel',  7.06, 15, 12),
-  p('M-2257','Mascara para Labios TS01085 Toque Special',   'Batom',   1.61, 10, 10),
+  p('M-2257','Mascara para Labios TS01085 Toque Special',   'Batom',   1.61,  5, 10),
   p('M-0274','Navalha C/3 QBM923 Bela Manuela',             'Outros',  2.38, 10, 12),
-  p('M-1828','Pacote Lenco Removedor Vivai',                'Outros', 12.34, 25,  3),
+  p('M-1828','Pacote Lenco Removedor Vivai (unidade)',      'Outros',  1.54,  5, 24),
   p('M-2976','Pinca Chanfrada Sobrancelha QBM973',          'Outros',  2.87, 10, 12),
-  p('M-3043','Piranha de Cabelo XX PIN09',                  'Outros',  4.32, 10, 12),
-  p('M-0682','Piranha Flor P Mey',                          'Outros',  1.95, 10, 12),
-  p('5132',  'Piranha RM',                                  'Outros',  3.09, 10, 12),
+  p('M-3043','Piranha de Cabelo XX PIN09',                  'Outros',  4.32,  8, 12),
+  p('M-0682','Piranha Flor P Mey (par c/2)',                'Outros',  3.90,  5,  6),
+  p('5132',  'Piranha RM',                                  'Outros',  3.09,  5, 12),
   p('M-0932','Po Neon QBM998 Bela Manuela',                 'Outros',  4.74, 10,  4),
   p('M-0900','Po Solto Banana FZ34032 Fenzza Make Up',      'Base',    5.52, 10, 20),
   p('M-0635','Po Solto Peach Power DP2291 DAPOP',           'Base',    6.27, 10,  6),
   p('M-2139','Po Translucido Solto DP2249 DAPOP',           'Base',    6.27, 10,  6),
   p('M-0109','Protetor Solar Facial FPS 60 40G Dermachem',  'Primer', 15.41, 25,  6),
-  p('M-0073','Rabico Para Cabelo Preto RM-1860',             'Outros',  7.12, 15,  1),
+  p('M-0073','Rabico Para Cabelo Preto RM-1860',             'Outros',  7.12,  5,  1),
   p('M-0110','Sab. Pos Demaquilante 100ml Dermachem',       'Outros',  5.91, 10, 12),
   p('M-1779','Sab. Pre Primer 100ml Dermachem',             'Primer',  5.91, 10, 12),
   p('M-2948','Sabonete Banho Cereja 100g Dermachem',        'Outros',  6.37, 10, 12),
   p('M-2154','Sabonete Banho Melancia 100g Dermachem',      'Outros',  6.37, 10, 12),
   p('M-0969','Sombra de Sobrancelha HBF572 Ruby Rose',      'Sombra',  7.59, 15, 24),
   p('M-2888','Tapa Seios Adesivo',                          'Outros',  3.53, 10, 12),
-  p('M-0670','Touca Cetim Antifrizz',                       'Outros',  2.38, 10, 24),
+  p('M-0670','Touca Cetim Antifrizz',                       'Outros',  2.38,  8, 24),
   p('4213',  'Serum 10x1 Max Love',                         'Primer',  5.64, 10, 24),
 ];}
 function seed(){
-  const ver=DB.get('mk_ver');
-  if(ver===SEED_VERSION) return;
-  // Limpa tudo para aplicar versão corrigida
-  [K.p,K.m,K.s].forEach(k=>localStorage.removeItem(k));
+  // NUNCA apaga dados existentes — só roda se não houver produtos cadastrados
+  const existingProducts = gP();
+  if(existingProducts.length > 0){
+    DB.set('mk_ver', SEED_VERSION);
+    return;
+  }
+  // Sem produtos: carrega a NF completa
   const ps=buildProducts();
   sP(ps);
-  const movs=ps.map(pr=>({id:uid(),productId:pr.id,productName:pr.name,type:'in',qty:pr.stock,note:'NF MS Atacado Orç.41286 — custos corrigidos v3',createdAt:new Date().toISOString()}));
+  const movs=ps.map(pr=>({id:uid(),productId:pr.id,productName:pr.name,type:'in',qty:pr.stock,note:'NF MS Atacado Orç.41286 — carga inicial',createdAt:new Date().toISOString()}));
   sM(movs);
-  sS([]);
+  if(!DB.get(K.s)) sS([]);
   if(!DB.get(K.c)) sC([{id:uid(),name:'Anderson Medeiros',phone:'83988994965',createdAt:new Date().toISOString()}]);
   if(!DB.get(K.cs)){
     sCS([
@@ -1882,6 +1886,15 @@ function configPage(){
       <button class="btn btn-err" onclick="clearAll()">🗑️ Limpar Todos os Dados</button>
     </div></div>
 
+    <div class="card" style="border-color:#d4a462">
+      <div class="card-hdr" style="background:#fffbf0"><div class="card-title" style="color:#a07010">📦 Restaurar Estoque da NF</div></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Recarrega os 84 produtos da NF MS Atacado com custos e quantidades corretos. <strong>Códigos de barras que você cadastrou manualmente serão preservados.</strong> Apenas produtos sem código real voltam ao código do fornecedor.</p>
+        <button class="btn" style="background:#d4a462;color:#fff" onclick="restoreStock()">↩️ Restaurar Produtos da NF</button>
+        <div id="restore-result" style="margin-top:10px;font-size:12.5px"></div>
+      </div>
+    </div>
+
     <div class="card" style="margin-top:0;border-color:#d4a462">
       <div class="card-hdr" style="background:#fffbf0"><div class="card-title" style="color:#a07010">🏷️ Aplicar Tabela de Preços</div></div>
       <div class="card-body">
@@ -1914,6 +1927,36 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('#pdv-cs')&&!e.target.closest('#pdv-cdd'))document.getElementById('pdv-cdd')?.setAttribute('style','display:none');
   if(!e.target.closest('#pdv-customer-search')&&!e.target.closest('#pdv-customer-dropdown'))document.getElementById('pdv-customer-dropdown')?.setAttribute('style','display:none');
 });
+
+function restoreStock(){
+  if(!confirm('Restaurar os 84 produtos da NF?\n\nCódigos de barras que você digitou manualmente serão preservados.'))return;
+  const nfProds=buildProducts();
+  const existing=gP();
+  const ms=gM();
+  let updated=0,added=0;
+  nfProds.forEach(nfP=>{
+    // Tenta encontrar produto pelo nome (remove espaços extras para comparar)
+    const found=existing.find(e=>e.name.toLowerCase().trim()===nfP.name.toLowerCase().trim());
+    if(found){
+      // Preserva o código de barras manual se foi cadastrado (diferente do código do fornecedor)
+      const bcManual=found.barcode&&found.barcode!==nfP.barcode&&!found.barcode.startsWith('M-')&&found.barcode.length>6;
+      found.cost=nfP.cost;
+      found.price=nfP.price;
+      found.stock=nfP.stock;
+      found.minStock=nfP.minStock;
+      if(!bcManual)found.barcode=nfP.barcode;
+      updated++;
+    } else {
+      existing.push(nfP);
+      ms.push({id:uid(),productId:nfP.id,productName:nfP.name,type:'in',qty:nfP.stock,note:'Restauração NF MS Atacado',createdAt:new Date().toISOString()});
+      added++;
+    }
+  });
+  sP(existing);sM(ms);
+  const el=document.getElementById('restore-result');
+  if(el)el.innerHTML=`<span style="color:var(--ok)">✅ ${updated} produto(s) atualizados · ${added} adicionados</span>`;
+  toast(`Estoque restaurado! ${updated} produtos atualizados.`);
+}
 
 function runPriceTable(){
   if(!confirm('Aplicar tabela de preços em todos os produtos? Os preços atuais serão substituídos.'))return;
