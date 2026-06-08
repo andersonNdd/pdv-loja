@@ -445,7 +445,7 @@ function prodTable(ps){
   const cfg=gCfg();const min=cfg.minStock||5;
   return`<table><thead><tr><th>Produto</th><th>Cat.</th><th>Código</th><th>Custo</th><th>Preço</th><th>Margem</th><th>Estoque</th><th></th></tr></thead><tbody>
   ${ps.map(p=>{
-    const mg=p.cost>0?((p.price-p.cost)/p.cost*100).toFixed(0):0;
+    const mg=p.cost>0?((p.price-p.cost)/p.price*100).toFixed(0):0;
     const sc=p.stock<=0?'b-err':p.stock<=min?'b-warn':'b-ok';
     return`<tr>
       <td><strong>${p.name}</strong><br><small style="color:var(--muted)">${p.unit||'un'}</small></td>
@@ -477,7 +477,7 @@ function openProdModal(id){
     <div class="fr fr3">
       <div class="fg"><label class="fl">Custo (R$) *</label><input class="fc" type="number" step="0.01" id="pco" value="${p?p.cost:''}" placeholder="0,00" oninput="calcMg()"></div>
       <div class="fg"><label class="fl">Preço Venda *</label><input class="fc" type="number" step="0.01" id="ppr" value="${p?p.price:''}" placeholder="0,00" oninput="calcMgFromPr()"></div>
-      <div class="fg"><label class="fl">Margem (%)</label><input class="fc" type="number" id="pmg" value="${p?((p.price-p.cost)/p.cost*100).toFixed(0):cfg.margin}" oninput="calcPrFromMg()"></div>
+      <div class="fg"><label class="fl">Margem (%)</label><input class="fc" type="number" id="pmg" value="${p?((p.price-p.cost)/p.price*100).toFixed(0):cfg.margin}" oninput="calcPrFromMg()"></div>
     </div>
     <div id="mg-info" style="font-size:12px;color:var(--ok);margin-top:-8px;margin-bottom:12px"></div>
     <div class="fr fr3">
