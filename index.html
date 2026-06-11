@@ -50,7 +50,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s;font-family:inherit}
 .btn-pri{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;box-shadow:0 2px 10px rgba(181,84,106,.3)}.btn-pri:hover{filter:brightness(1.08)}
 .btn-sec{background:transparent;border:1.5px solid var(--bdr);color:var(--txt)}.btn-sec:hover{border-color:var(--pri);color:var(--pri)}
-.btn-err{background:#fee2e2;color:var(--err)}.btn-err:hover{background:var(--err);color:#fff}
+.btn-err{background:#fee2e2;color:var(--err)}.btn-err:hover{background:var(--err);color:#fff}.bandeira-btn.sel{background:var(--pri)!important;color:#fff!important;border-color:var(--pri)!important}
 .btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{filter:brightness(.92)}
 .btn-sm{padding:5px 10px;font-size:12px}
 .btn-ic{padding:5px;background:transparent;border:none;cursor:pointer;color:var(--muted);border-radius:6px;transition:all .2s}.btn-ic:hover{background:var(--bg);color:var(--pri)}
@@ -576,6 +576,7 @@ function pdvPage(){
             <div id="pdv-cdd" class="ac-dd" style="display:none"></div>
           </div></div>
           <button class="btn btn-sec btn-sm" onclick="clearPdvCust()">Limpar</button>
+          <button class="btn btn-sec btn-sm" onclick="openCustModal()" title="Cadastrar novo cliente">+ Cliente</button>
         </div>
       </div></div>
       <div class="card" style="flex:1;overflow:hidden">
@@ -734,9 +735,42 @@ function renderTotals(){
 
 // ── PAYMENT MODAL ─────────────────────────────────────────────
 let selPay='Pix';
+const CARD_FEES={
+  'Cartão de Débito':{'Visa':0.010,'Mastercard':0.010,'default':0.017},
+  'Cartão de Crédito':{'Visa':0.0305,'Mastercard':0.0305,'Diners':0.0319,'default':0.0399}
+};
+const BANDEIRAS_DEBITO=['Visa','Mastercard','Elo','Outras'];
+const BANDEIRAS_CREDITO=['Visa','Mastercard','Diners','Elo','Outras'];
+function calcCardFee(method,bandeira){
+  const rates=CARD_FEES[method];if(!rates)return 0;
+  return rates[bandeira]!=null?rates[bandeira]:rates['default'];
+}
+function selBandeira(idx,b,el){
+  pays[idx].bandeira=b;
+  const grp=el.closest('.bandeira-group');
+  if(grp)grp.querySelectorAll('.bandeira-btn').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  syncFeeInfo();
+}
+function syncFeeInfo(){
+  const el=document.getElementById('fee-info');if(!el)return;
+  const cardPays=pays.filter(p=>p.method==='Cartão de Crédito'||p.method==='Cartão de Débito');
+  if(!cardPays.length){el.innerHTML='';return;}
+  const lines=cardPays.map(p=>{
+    if(!p.bandeira)return`<span style="color:var(--warn)">⚠ Selecione a bandeira para ${p.method}</span>`;
+    const fee=calcCardFee(p.method,p.bandeira);
+    const feeAmt=p.amount*fee;
+    return`<span style="color:var(--muted)">Taxa ${p.bandeira} (${p.method==='Cartão de Débito'?'Déb':'Créd'}): ${(fee*100).toFixed(2)}% = ${R(feeAmt)}</span>`;
+  });
+  el.innerHTML=lines.join('<br>');
+}
+function bandeiraButtons(idx,method){
+  const blist=method==='Cartão de Débito'?BANDEIRAS_DEBITO:BANDEIRAS_CREDITO;
+  return`<div class="bandeira-group" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${blist.map(b=>`<button class="bandeira-btn" onclick="selBandeira(${idx},'${b}',this)" style="font-size:11px;padding:3px 9px;border:1px solid var(--border);border-radius:20px;background:var(--bg);cursor:pointer;transition:all .15s">${b}</button>`).join('')}</div>`;
+}
 function openPayModal(){
   if(!cart.length){toast('Carrinho vazio!','err');return;}
-  const tot=getTotal();pays=[{method:'Pix',amount:tot}];payRows=1;
+  const tot=getTotal();pays=[{method:'Pix',amount:tot,bandeira:null}];payRows=1;
   openModal(`<div class="modal"><div class="mhdr"><div class="mtitle">💳 Pagamento</div><button class="btn-ic" onclick="closeModal()">✕</button></div>
   <div class="mbody">
     <div style="font-size:20px;font-weight:700;color:var(--pri);text-align:center;margin-bottom:18px;font-family:'Cormorant Garamond',serif">Total: ${R(tot)}</div>
@@ -746,13 +780,18 @@ function openPayModal(){
     </div>
     <div id="pay-rows">
       <div class="sr" style="margin-top:10px;align-items:center"><span id="pay-lbl-0" style="font-weight:600">Pix</span>
-      <input class="fc" type="number" step="0.01" value="${tot.toFixed(2)}" style="width:115px;text-align:right" id="pamt-0" oninput="syncPays()"></div>
+      <input class="fc" type="number" step="0.01" value="${tot.toFixed(2)}" style="width:115px;text-align:right" id="pamt-0" oninput="syncPays();syncFeeInfo()"></div>
+    </div>
+    <div id="bandeira-row" style="display:none;margin-top:10px;background:var(--bg);padding:10px;border-radius:8px">
+      <label class="fl" style="margin-bottom:4px">Bandeira</label>
+      <div id="bandeira-btns-0"></div>
     </div>
     <div id="cash-row" style="display:none;margin-top:12px;background:var(--bg);padding:12px;border-radius:8px">
       <div class="sr" style="align-items:center;margin-bottom:6px"><span>Valor recebido</span><input class="fc" type="number" step="0.01" id="cash-recv" placeholder="0,00" style="width:115px;text-align:right" oninput="calcChange()"></div>
       <div class="sr" style="font-weight:700;color:var(--ok)"><span>Troco</span><span id="troco">R$ 0,00</span></div>
     </div>
     <div id="card-brand-row" style="display:none;margin-top:12px;background:var(--bg);padding:12px;border-radius:8px"><div class="sr" style="align-items:center;margin-bottom:6px"><span style="font-size:13px;font-weight:500">🏧 Bandeira</span><select class="fc" id="card-brand-sel" style="width:160px" onchange="selCardBrand(this.value)"><option value="Visa">Visa</option><option value="Mastercard">Mastercard</option><option value="Elo">Elo</option><option value="Hipercard">Hipercard</option><option value="Amex">Amex</option><option value="Dinis">Dinis</option><option value="Outras">Outras</option></select></div><div id="card-fee-lbl" style="font-size:12.5px;text-align:right;margin-top:4px"></div></div>
+    <div id="fee-info" style="margin-top:8px;font-size:12px;line-height:1.7"></div>
     <button class="btn btn-sec btn-sm" onclick="splitPay()" style="margin-top:8px">+ Dividir pagamento</button>
     <div id="pay-check" style="margin-top:10px;font-size:12.5px"></div>
   </div>
@@ -763,9 +802,16 @@ function openPayModal(){
 function selPayMethod(btn,m){
   document.querySelectorAll('.pay-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');selPay=m;
   const lbl=document.getElementById('pay-lbl-0');if(lbl)lbl.textContent=m;
-  pays[0].method=m;
+  pays[0].method=m;pays[0].bandeira=null;
   document.getElementById('cash-row').style.display=m==='Dinheiro'?'block':'none';
-  syncPays();
+  const isCard=m==='Cartão de Crédito'||m==='Cartão de Débito';
+  const bRow=document.getElementById('bandeira-row');
+  if(bRow){
+    bRow.style.display=isCard?'block':'none';
+    const bc=document.getElementById('bandeira-btns-0');
+    if(bc)bc.innerHTML=isCard?bandeiraButtons(0,m):'';
+  }
+  syncPays();syncFeeInfo();
 }
 function syncPays(){
   const tot=getTotal();
@@ -781,13 +827,25 @@ function syncPays(){
 }
 function splitPay(){
   payRows++;const idx=payRows-1;
-  pays.push({method:'Pix',amount:0});
+  pays.push({method:'Pix',amount:0,bandeira:null});
   const rows=document.getElementById('pay-rows');
-  const d=document.createElement('div');
-  d.className='sr';d.style.cssText='margin-top:8px;align-items:center;gap:8px';
-  d.innerHTML=`<div style="display:flex;flex-direction:column;gap:5px;flex:1"><select class="fc" onchange="pays[${idx}].method=this.value;const br=document.getElementById('sbrand-${idx}');if(br)br.style.display=(this.value.includes('Cartão'))?'block':'none'">${['Dinheiro','Cartão de Crédito','Cartão de Débito','Pix'].map(m=>`<option>${m}</option>`).join('')}</select><select class="fc" id="sbrand-${idx}" style="display:none" onchange="pays[${idx}].brand=this.value">${['Visa','Mastercard','Elo','Hipercard','Amex','Dinis','Outras'].map(b=>`<option>${b}</option>`).join('')}</select></div>
-  <input class="fc" type="number" step="0.01" value="0" style="width:115px;text-align:right;align-self:flex-start" id="pamt-${idx}" oninput="syncPays()">`;
-  rows.appendChild(d);syncPays();
+  const wrap=document.createElement('div');
+  wrap.style.cssText='margin-top:8px';
+  wrap.innerHTML=`<div class="sr" style="align-items:center;gap:8px"><select class="fc" style="flex:1" id="pmet-${idx}" onchange="updateSplitMethod(${idx},this.value)">${['Dinheiro','Cartão de Crédito','Cartão de Débito','Pix'].map(m=>`<option>${m}</option>`).join('')}</select>
+  <input class="fc" type="number" step="0.01" value="0" style="width:115px;text-align:right" id="pamt-${idx}" oninput="syncPays()"></div>
+  <div id="split-bandeira-${idx}" style="display:none;background:var(--bg);padding:8px;border-radius:8px;margin-top:4px"><label class="fl" style="margin-bottom:4px;font-size:12px">Bandeira</label><div id="split-bandeira-btns-${idx}"></div></div>`;
+  rows.appendChild(wrap);syncPays();
+}
+function updateSplitMethod(idx,m){
+  pays[idx].method=m;pays[idx].bandeira=null;
+  const isCard=m==='Cartão de Crédito'||m==='Cartão de Débito';
+  const bRow=document.getElementById(`split-bandeira-${idx}`);
+  if(bRow){
+    bRow.style.display=isCard?'block':'none';
+    const bc=document.getElementById(`split-bandeira-btns-${idx}`);
+    if(bc)bc.innerHTML=isCard?bandeiraButtons(idx,m):'';
+  }
+  syncPays();
 }
 function calcChange(){
   const tot=getTotal();const recv=parseFloat(document.getElementById('cash-recv').value)||0;
@@ -800,6 +858,9 @@ function finSale(){
   const tot=getTotal();const paid=pays.reduce((s,p)=>s+p.amount,0);
   const hasCash=pays.some(p=>p.method==='Dinheiro');
   if(!hasCash&&Math.abs(paid-tot)>0.01){toast('Valor não confere com o total!','err');return;}
+  const missingBandeira=pays.find(p=>(p.method==='Cartão de Crédito'||p.method==='Cartão de Débito')&&!p.bandeira);
+  if(missingBandeira){toast(`Selecione a bandeira para ${missingBandeira.method}!`,'err');return;}
+  pays.forEach(p=>{if(p.method==='Cartão de Crédito'||p.method==='Cartão de Débito'){p.fee=calcCardFee(p.method,p.bandeira);p.feeAmount=parseFloat((p.amount*p.fee).toFixed(2));}});
   const ps=gP();const ms=gM();
   for(const it of cart){
     const i=ps.findIndex(p=>p.id===it.id);
@@ -981,7 +1042,11 @@ function drawReceipt(sale){
   // Footer
   c.fillStyle='#f7f2f5';c.fillRect(0,y,W,H-y);
   c.fillStyle='#c4687a';c.font='bold 12px sans-serif';c.textAlign='center';c.textBaseline='middle';
-  c.fillText('✦ Obrigada pela preferência! ✦',W/2,y+18);
+  c.fillText('Obrigado pela preferência! Nos siga no Instagram',W/2,y+14);
+  c.fillStyle='#c4687a';c.font='bold 11px sans-serif';
+  c.fillText('@glowrosamakeup para não perder as novidades',W/2,y+26);
+  c.fillStyle='#b07090';
+  c.fillText('Seu momento Glow chegou 🌸',W/2,y+38);
   c.fillStyle='#aaa';c.font='10px sans-serif';
   c.fillText(storeName+' · '+new Date().toLocaleDateString('pt-BR'),W/2,y+34);
 }
@@ -993,7 +1058,7 @@ function downloadReceipt(){
 function sendWhatsApp(phone){
   downloadReceipt();
   const num=phone.replace(/\D/g,'');
-  const msg=encodeURIComponent('Olá! Segue o comprovante da sua compra 🛍️\n\nBaixe e salve a imagem enviada acima.\n\nObrigada pela preferência! ✦');
+  const msg=encodeURIComponent('Olá! Segue o comprovante da sua compra 🛍️\n\nBaixe e salve a imagem enviada acima.\n\nObrigado pela preferência, nos siga no Instagram para não perder as novidades:\nhttps://www.instagram.com/glowrosamakeup/\n\nSeu momento Glow chegou 🌸');
   setTimeout(()=>window.open(`https://wa.me/55${num}?text=${msg}`,'_blank'),400);
 }
 function downloadAndWhatsApp(){
@@ -1025,7 +1090,7 @@ function histTable(ss){
     <td style="font-size:12px">${D(s.createdAt)}</td>
     <td>${s.customerName||'<span style="color:var(--muted)">—</span>'}</td>
     <td>${s.items.length}</td>
-    <td style="font-size:12px">${s.payments.map(p=>p.method).join(' + ')}</td>
+    <td style="font-size:12px">${s.payments.map(p=>p.method+(p.bandeira?' ('+p.bandeira+')':'')).join(' + ')}</td>
     <td><strong>${R(s.total)}</strong>${s.discount>0?`<br><small style="color:var(--muted)">Desc: ${R(s.discount)}</small>`:''}</td>
     <td><span class="badge ${s.cancelled?'b-err':'b-ok'}">${s.cancelled?'Cancelada':'Finalizada'}</span></td>
     <td style="text-align:right">
@@ -1052,7 +1117,7 @@ function viewSale(id){
       <div><strong>Data:</strong> ${D(s.createdAt)}</div>
       <div><strong>Cliente:</strong> ${s.customerName||'—'}</div>
       <div><strong>Status:</strong> <span class="badge ${s.cancelled?'b-err':'b-ok'}">${s.cancelled?'Cancelada':'Finalizada'}</span></div>
-      <div><strong>Pagamento:</strong> ${s.payments.map(p=>`${p.method} (${R(p.amount)})`).join(' + ')}</div>
+      <div><strong>Pagamento:</strong> ${s.payments.map(p=>`${p.method}${p.bandeira?' ('+p.bandeira+')':''} ${R(p.amount)}${p.feeAmount?' · taxa '+R(p.feeAmount):''}`).join(' + ')}</div>
     </div>
     <table style="margin-bottom:14px"><thead><tr><th>Produto</th><th>Qtd</th><th>Unitário</th><th>Subtotal</th></tr></thead><tbody>
       ${s.items.map(i=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>${R(i.price)}</td><td>${R(i.price*i.qty)}</td></tr>`).join('')}
